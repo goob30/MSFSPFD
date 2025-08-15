@@ -17,3 +17,4 @@ C:\Users\User\Documents\VSCodeProjects\cs\MSFSPFD\obj\Debug\net8.0\MSFSPFD.pdb
 C:\Users\User\Documents\VSCodeProjects\cs\MSFSPFD\obj\Debug\net8.0\MSFSPFD.genruntimeconfig.cache
 C:\Users\User\Documents\VSCodeProjects\cs\MSFSPFD\obj\Debug\net8.0\ref\MSFSPFD.dll
 C:\Users\User\Documents\VSCodeProjects\cs\MSFSPFD\bin\Debug\net8.0\Newtonsoft.Json.dll
+C:\Users\User\Documents\VSCodeProjects\cs\MSFSPFD\obj\Debug\net8.0\MSFSPFD.sourcelink.json

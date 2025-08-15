@@ -177,7 +177,15 @@
             const TREND_DEADBAND = 1.5; // Minimum change to show trend
             const DISPLAY_RESPONSE_TIME = 1.5; // Slower for display smoothing
             const TREND_RESPONSE_TIME = 0.8; // Faster for trend calculation - more responsive
-            const speedTrendProjectionSeconds = 6.0;
+            const SPEED_TREND_PROJECTION_SECONDS = 6.0;
+
+            let prevAltitude = 0;
+            let altitudeTrend = 0;
+            let projectedAltitude = 0;
+            let smoothedAltitude = 0;
+
+            const ALTITUDE_RESOLUTION = 10;
+            const ALTITUDE_TREND_PROJECTION_SECONDS = 6.0;
 
             let lastUpdateTime = null;
 
@@ -195,12 +203,24 @@
                 speedTrend += trendSmoothingFactor * (rawTrend - speedTrend);
                 
                 // Project based on RAW airspeed, not smoothed
-                projectedSpeed = rawAirspeed + (speedTrend * speedTrendProjectionSeconds);
+                projectedSpeed = rawAirspeed + (speedTrend * SPEED_TREND_PROJECTION_SECONDS);
                 
                 // Smooth airspeed separately for display purposes only
                 smoothedAirspeed += displaySmoothingFactor * (rawAirspeed - smoothedAirspeed);
                 
                 prevSpeed = rawAirspeed; // Use raw airspeed for next trend calculation
+            }
+
+            function updateAltitudeTrend(rawAltitude, deltaTime) {
+                const trendSmoothingFactor = 1 - Math.exp(-deltaTime / TREND_RESPONSE_TIME);
+                const displaySmoothingFactor = 1 - Math.exp(-deltaTime / DISPLAY_RESPONSE_TIME);
+
+                if (smoothedAltitude === 0) smoothedAltitude = rawAltitude;
+                let rawTrend = (rawAltitude - prevAltitude) / deltaTime;
+                altitudeTrend += trendSmoothingFactor * (rawTrend - altitudeTrend);
+                projectedAltitude = rawAltitude + (altitudeTrend * ALTITUDE_TREND_PROJECTION_SECONDS);
+                smoothedAltitude += displaySmoothingFactor * (rawAltitude - smoothedAltitude);
+                prevAltitude = rawAltitude;
             }
 
             function drawSpeedTape() {
@@ -292,13 +312,30 @@
                 ctx.fillStyle = "cyan"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
                 ctx.fillText(Math.round(selectedAirspeed), x + width/2, y-8);
                 
+                // Mach indicator
+                ctx.fillStyle = "white"; ctx.font = "16px monospace";
+                ctx.fillText(Math.round(qnh), x + width/2, y + height + 20);
+                
                 // Reset line width
                 ctx.lineWidth = 1;
             }   
 
             function drawAltitudeTape() {
                 const x = canvas.width - 115, y = 120, width = 80, height = 260;
-                const centerY = y + height / 2, pxPer100ft = 20;
+                const centerY = y + height / 2;
+                const pxPer100ft = 20;
+                const now = performance.now() / 1000;
+
+                if (lastUpdateTime != null) {
+                    const deltaTime = now - lastUpdateTime;
+                    if (prevAltitude !== null && deltaTime > 0) {
+                        updateAltitudeTrend(altitude, deltaTime);
+                    }
+                } else {
+                    smoothedAltitude = altitude;
+                    prevAltitude = altitude;
+                }
+                lastUpdateTime = now;
 
                 ctx.save();
                 ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip();
@@ -327,6 +364,29 @@
                 // QNH Setting
                 ctx.fillStyle = "white"; ctx.font = "16px monospace";
                 ctx.fillText("QNH " + Math.round(qnh), x + width/2, y + height + 20);
+
+                const TREND_DIFFERENCE = Math.abs(projectedAltitude - altitude);
+                const TREND_Y = centerY - (projectedAltitude - smoothedAltitude) * pxPer100ft;
+
+                if (TREND_DIFFERENCE >= TREND_DEADBAND) {
+                    ctx.strokeStyle = "magenta";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x + width / 2, centerY);
+                    ctx.lineTo(x + width / 2, TREND_Y);
+
+                    const arrowSize = 6;
+                    const direction = TREND_Y < centerY ? -1 : 1;
+                    ctx.beginPath();
+                    ctx.moveTo(x + width / 2, TREND_Y);
+                    ctx.lineTo(x + width / 2 - arrowSize/2, TREND_Y - direction * arrowSize);
+                    ctx.lineTo(x + width / 2 + arrowSize/2, TREND_Y - direction * arrowSize);
+                    ctx.closePath();
+                    ctx.fillStyle = "magenta";
+                    ctx.fill();
+                }
+
+                ctx.lineWidth = 1;
             }
 
             function drawHeadingTape() {
