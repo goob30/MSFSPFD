@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>PFD</title>
+        <style>
+            body { background: black; margin: 0; font-family: 'Roboto', sans-serif; user-select: none; }
+            canvas { display: block; margin: auto; background: black; }
+            
+        </style>
+            <div id="errorBox" style="
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: black;
+            border: 2px solid red;
+            color: white;
+            padding: 10px 20px;
+            font-family: monospace, sans-serif;
+            font-size: 16px;
+            z-index: 1000;
+            white-space: nowrap;
+            user-select: none;
+            ">
+        </div>
+
+        
+    </head>
+    <body>
+        <canvas id="pfd" width="600" height="500"></canvas>
+        <script>
+            // This is the new pfd.js
+            let canvas = document.getElementById('pfd');
+            let ctx = canvas.getContext('2d');
+
+            let horizonImg = new Image();
+            horizonImg.src = 'artificial_horizon.png';
+            let attitudeImg = new Image();
+            attitudeImg.src = 'attitude_indicator.png';
+
+            // --- Flight Data Variables ---
+            // These will be updated by the WebSocket
+            let pitch = 0, bank = 0, airspeed = 0, altitude = 0, heading = 0, verticalSpeed = 0;
+            let selectedAltitude = 0, qnh = 1013;
+
+
+            // --- PFD Style Configuration ---
+            const config = {
+                skyColor: '#0087FF',
+                groundColor: '#A55200',
+                fdColor: '#00FF00', // Flight Director color
+                aircraftSymbolColor: '#D4AC0D', // Yellow/gold
+            };
+            
+            // --- WebSocket Connection ---
+            let ws = new WebSocket("ws://127.0.0.1:8080/pfd");
+            ws.onmessage = (msg) => {
+                let data = JSON.parse(msg.data);
+                pitch = data.pitch;
+                bank = data.bank;
+                airspeed = data.airspeed;
+                altitude = data.altitude;
+                heading = data.heading;
+                verticalSpeed = data.verticalSpeed;
+                selectedAltitude = data.selectedAltitude;
+                qnh = data.qnh;
+            };
+            ws.onerror = (err) => {
+                console.error("WebSocket Error:", err);
+            };
+            ws.onclose = () => {
+                console.log("WebSocket connection closed.");
+            };
+
+            function drawArtificialHorizon() {
+                ctx.save();
+
+                const maskWidth = 900
+                const maskHeight = maskWidth * (10/16);
+                maskX = (canvas.width - maskWidth) / 2;
+                maskY = (canvas.height - maskHeight) / 2;
+
+                ctx.beginPath();
+                ctx.rect(maskX, maskY, maskWidth, maskHeight);
+                ctx.clip();
+
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(bank * Math.PI / 180);
+                const pitchOffset = pitch * 10; // 10 pixels per degree of pitch
+
+                ctx.drawImage(horizonImg, -horizonImg.width / 2, -horizonImg.height / 2 - pitchOffset);
+
+                ctx.restore();
+                /* ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.beginPath();
+                ctx.arc(0, 0, 200, 0, 2 * Math.PI);
+                ctx.clip();
+                ctx.rotate(bank * Math.PI / 180);
+
+                // Draw Sky
+                ctx.fillStyle = config.skyColor;
+                ctx.fillRect(-1000, -1000 - pitchOffset, 2000, 1000);
+
+                // Draw Ground
+                ctx.fillStyle = config.groundColor;
+                ctx.fillRect(-1000, -pitchOffset, 2000, 1000);
+                
+                // --- Pitch Ladder ---
+                ctx.strokeStyle = "white";
+                ctx.fillStyle = "white";
+                ctx.font = "16px sans-serif";
+                ctx.lineWidth = 2;
+
+                // Horizon Line
+                const horizonY = -pitchOffset;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-150, horizonY);
+                ctx.lineTo(150, horizonY);
+                ctx.stroke();
+                ctx.lineWidth = 2;
+
+                for (let p = -30; p <= 30; p += 2.5) {
+                    if (p === 0) continue;
+                    let y = p * -10 - pitchOffset;
+                    if (y < -220 || y > 220) continue;
+
+                    ctx.beginPath();
+                    if (p % 10 === 0) { // Major lines
+                        ctx.moveTo(-60, y);
+                        ctx.lineTo(60, y);
+                        ctx.textAlign = "right";
+                        ctx.fillText(Math.abs(p), -70, y + 5);
+                        ctx.textAlign = "left";
+                        ctx.fillText(Math.abs(p), 70, y + 5);
+                    } else if (p % 5 === 0) { // Minor lines
+                        if (p < 0) ctx.setLineDash([5, 5]); else ctx.setLineDash([]);
+                        ctx.moveTo(-30, y);
+                        ctx.lineTo(30, y);
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                ctx.restore(); */
+            }
+
+            function drawFixedSymbols() {
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+
+                let scale = 0.1;
+                let newWidth = attitudeImg.width * scale;
+                let newHeight = attitudeImg.height * scale;
+
+                ctx.drawImage(attitudeImg, -newWidth / 2, (-newHeight / 2) + 10, newWidth, newHeight);
+
+
+                // --- Fixed Aircraft Symbol ---
+                /* ctx.strokeStyle = 'black';
+                ctx.fillStyle = config.aircraftSymbolColor;
+                ctx.lineWidth = 6;
+                
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = config.aircraftSymbolColor;
+                ctx.beginPath();
+                ctx.moveTo(-80, 0);
+                ctx.lineTo(-25, 0);
+                ctx.moveTo(80, 0);
+                ctx.lineTo(25, 0);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(-25, 0);
+                ctx.lineTo(-25, -20);
+                ctx.moveTo(25, 0);
+                ctx.lineTo(25, -20);
+                ctx.stroke(); */
+                ctx.restore();
+            }
+
+            function drawRollScale() {
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2;
+                const radius = 200;
+                const angles = [-60, -45, -30, -20, -10, 10, 20, 30, 45, 60];
+                angles.forEach(angle => {
+                    const rad = angle * Math.PI / 180;
+                    const tickLength = (angle % 30 === 0 || Math.abs(angle) === 45) ? 15 : 10;
+                    let x1 = Math.sin(rad) * radius;
+                    let y1 = -Math.cos(rad) * radius;
+                    let x2 = Math.sin(rad) * (radius + tickLength);
+                    let y2 = -Math.cos(rad) * (radius + tickLength);
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                });
+
+                // Bank Angle Pointer
+                ctx.rotate(bank * Math.PI / 180);
+                ctx.fillStyle = config.aircraftSymbolColor;
+                ctx.beginPath();
+                ctx.moveTo(0, -radius - 2);
+                ctx.lineTo(-10, -radius - 17);
+                ctx.lineTo(10, -radius - 17);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+            
+            function drawSpeedTape() {
+                const x = 50, y = 120, width = 65, height = 260;
+                const centerY = y + height / 2, pxPerKnot = 4;
+                
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, width, height);
+                ctx.clip();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(x, y, width, height);
+
+                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "18px monospace"; ctx.textAlign = "right";
+
+                const startSpeed = Math.floor(airspeed / 10) * 10 - 50;
+                for (let speed = startSpeed; speed <= startSpeed + 100; speed += 10) {
+                    if (speed < 0) continue;
+                    const yPos = centerY - (speed - airspeed) * pxPerKnot;
+                    ctx.beginPath();
+                    ctx.moveTo(x + width - 20, yPos);
+                    ctx.lineTo(x + width, yPos);
+                    ctx.stroke();
+                    ctx.fillText(speed.toString(), x + width - 25, yPos + 6);
+                }
+                ctx.restore();
+                
+                // Current Speed Indicator
+                ctx.strokeStyle = "white";
+                ctx.strokeRect(x, y, width, height);
+                ctx.fillStyle = '#00FF00';
+                ctx.fillRect(x, centerY - 18, width, 36);
+                ctx.fillStyle = 'black';
+                ctx.font = "bold 22px monospace";
+                ctx.textAlign = "center";
+                ctx.fillText(Math.round(airspeed), x + width / 2, centerY + 8);
+
+                // Selected Speed
+                //ctx.fillStyle = "cyan"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
+                //ctx.fillText(Math.round(selectedAirspeed), x + width / 2, y - 8);
+            }
+
+            function drawAltitudeTape() {
+                const x = canvas.width - 115, y = 120, width = 80, height = 260;
+                const centerY = y + height / 2, pxPer100ft = 20;
+
+                ctx.save();
+                ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; ctx.fillRect(x, y, width, height);
+                
+                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "18px monospace"; ctx.textAlign = "left";
+                
+                const startAlt = Math.floor(altitude / 100) * 100 - 1000;
+                for (let alt = startAlt; alt <= startAlt + 2000; alt += 100) {
+                    const yPos = centerY - ((alt - altitude) / 100) * pxPer100ft;
+                    ctx.beginPath(); ctx.moveTo(x, yPos); ctx.lineTo(x + 20, yPos); ctx.stroke();
+                    ctx.fillText((alt / 100).toFixed(0).padStart(3, '0'), x + 25, yPos + 6);
+                }
+                ctx.restore();
+                
+                // Current Altitude Indicator
+                ctx.strokeStyle = "white"; ctx.strokeRect(x, y, width, height);
+                ctx.fillStyle = '#00FF00'; ctx.fillRect(x, centerY - 18, width, 36);
+                ctx.fillStyle = 'black'; ctx.font = "bold 22px monospace"; ctx.textAlign = "center";
+                ctx.fillText(Math.round(altitude), x + width / 2, centerY + 8);
+
+                // Selected Altitude
+                ctx.fillStyle = "cyan"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
+                ctx.fillText(Math.round(selectedAltitude), x + width/2, y-8);
+
+                // QNH Setting
+                ctx.fillStyle = "white"; ctx.font = "16px monospace";
+                ctx.fillText("QNH " + Math.round(qnh), x + width/2, y + height + 20);
+            }
+
+            function drawHeadingTape() {
+                const x = canvas.width/2 - 150, y = canvas.height - 45, width = 300, height = 40;
+                const centerX = x + width/2, pxPerDeg = 5;
+
+                ctx.save();
+                ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip();
+                ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x, y, width, height);
+                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "16px monospace"; ctx.textAlign = "center";
+                
+                const startHdg = Math.round(heading - 35);
+                for (let h = startHdg; h <= startHdg + 70; h++) {
+                    let h_norm = (h + 360) % 360;
+                    const xPos = centerX + (h - heading) * pxPerDeg;
+                    if (h_norm % 10 === 0) {
+                        ctx.beginPath(); ctx.moveTo(xPos, y); ctx.lineTo(xPos, y + 15); ctx.stroke();
+                        let text = (h_norm/10).toString().padStart(2, '0');
+                        ctx.fillText(text, xPos, y + 35);
+                    } else if (h_norm % 5 === 0) {
+                        ctx.beginPath(); ctx.moveTo(xPos, y); ctx.lineTo(xPos, y + 10); ctx.stroke();
+                    }
+                }
+                ctx.restore();
+
+                // Center indicator
+                ctx.strokeStyle = "white"; ctx.strokeRect(x, y, width, height);
+                ctx.fillStyle = "white"; ctx.font = 'bold 18px monospace';
+                ctx.strokeRect(centerX - 30, y-1, 60, 22);
+                ctx.fillRect(centerX - 30, y-1, 60, 22);
+                ctx.fillStyle = 'black';
+                ctx.fillText(Math.round(heading).toString().padStart(3,'0'), centerX, y + 16);
+            }
+
+            function drawVSIndicator() {
+                const x = canvas.width - 25, y = 120, height = 260;
+                const centerY = y + height / 2, maxVS = 3000;
+                const pxPer100fpm = (height / 2) / (maxVS / 100) / 100;
+
+                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "14px monospace"; ctx.textAlign = "left";
+                
+                // Draw scale
+                [-2000, -1000, 1000, 2000].forEach(val => {
+                    const yPos = centerY - val * pxPer100fpm;
+                    ctx.beginPath(); ctx.moveTo(x, yPos); ctx.lineTo(x - 10, yPos); ctx.stroke();
+                    ctx.fillText((Math.abs(val)/1000).toFixed(0), x - 20, yPos + 5);
+                });
+                
+                // Draw needle
+                if(Math.abs(verticalSpeed) > 100) {
+                    const vsClamped = Math.max(-maxVS, Math.min(maxVS, verticalSpeed));
+                    const needleY = centerY - vsClamped * pxPer100fpm;
+                    ctx.strokeStyle = config.fdColor;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x, centerY);
+                    ctx.lineTo(x, needleY);
+                    ctx.lineTo(x - 10, needleY);
+                    ctx.stroke();
+                }
+            }
+            
+            function drawFMA() {
+                ctx.textAlign = "center";
+                const topY = 30;
+                const fma = [
+                    {text: 'SPEED', color: 'lime', x: 80}, {text: 'G/S', color: 'lime', x: 190},
+                    {text: 'LOC', color: 'lime', x: 270}, {text: 'CAT3\nDUAL', color: 'white', x: 380},
+                    {text: 'AP1+2\nFD 2\nA/THR', color: 'white', x: 490},
+                ];
+                fma.forEach(item => {
+                    ctx.fillStyle = item.color;
+                    ctx.font = `bold ${item.text.includes('\n') ? '16px' : '18px'} sans-serif`;
+                    let lines = item.text.split('\n');
+                    lines.forEach((line, index) => ctx.fillText(line, item.x, topY + index * 18));
+                });
+            }
+
+            // --- Main Draw Loop ---
+            function draw() {
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                drawArtificialHorizon();
+                drawRollScale();
+                drawFixedSymbols(); // Drawn on top of horizon but below tapes
+                drawSpeedTape();
+                drawAltitudeTape();
+                drawHeadingTape();
+                drawVSIndicator();
+                drawFMA();
+
+                requestAnimationFrame(draw);
+            }
+            draw();
+
+            // --- Error Handling ---
+            let errorBox = document.getElementById('errorBox');
+
+            ws.onmessage = (msg) => {
+                let data = JSON.parse(msg.data);
+                if (data.error) {
+                    errorBox.textContent = data.message;
+                    errorBox.style.display = 'block';
+                    return;
+                }
+
+                errorBox.style.display = 'none'; // Hide error box if no error
+
+                pitch = data.pitch;
+                bank = data.bank;
+                airspeed = data.airspeed;
+                altitude = data.altitude;
+                heading = data.heading;
+                verticalSpeed = data.verticalSpeed;
+                selectedAltitude = data.selectedAltitude;
+                qnh = data.qnh;
+            };
+        </script>
+    </body>
+</html>
