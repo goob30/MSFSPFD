@@ -5,6 +5,14 @@ using WebSocketSharp;
 using WebSocketSharp.Server;
 using Newtonsoft.Json; // You may need to add this NuGet package: Install-Package Newtonsoft.Json
 
+
+
+/*
+    Half of this entire project is vibe coded because i wrote most of it at past 3 in the morning
+    and i don't know how half of this works, but i wont touch it because if it aint broke dont fix
+    it
+*/
+
 // Define enums for SimConnect requests
 enum DEFINITIONS { AircraftInfo }
 enum DATA_REQUESTS { Request_1 }
