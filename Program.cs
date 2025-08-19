@@ -99,14 +99,54 @@ public class PFDService : WebSocketBehavior
             pendingErrorMessage = null;
         }
     }
-    
+
+}
+
+public class NDService : WebSocketBehavior
+{
+    private string pendingErrorMessage;
+    public void SendData(AircraftData data)
+    {
+        if (State == WebSocketState.Open)
+        {
+            // Use Newtonsoft.Json for reliable serialization
+            var settings = new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.Default };
+            var json = JsonConvert.SerializeObject(data, settings);
+            Send(json);
+        }
+    }
+    public void SendError(string errorMessage)
+    {
+        if (State == WebSocketState.Open)
+        {
+            var errorJson = JsonConvert.SerializeObject(new { error = errorMessage });
+            Send(errorJson);
+        }
+
+        else
+        {
+            pendingErrorMessage = errorMessage;
+        }
+    }
+
+    protected override void OnOpen()
+    {
+        base.OnOpen();
+        if (!string.IsNullOrEmpty(pendingErrorMessage))
+        {
+            SendError(pendingErrorMessage);
+            pendingErrorMessage = null;
+        }
+    }
 }
 
 class Program
 {
     static SimConnect simconnect;
     static PFDService pfdService;
+    static NDService ndService;
     static readonly object pfdServiceLock = new object();
+    static readonly object ndServiceLock = new object();
 
     /// <summary>
     /// Entry point of the application. 
@@ -131,8 +171,21 @@ class Program
             }
             return pfdService;
         });
+        wssv.AddWebSocketService<NDService>("/nd", () =>
+        {
+            lock (ndServiceLock)
+            {
+                if (ndService == null)
+                {
+                    ndService = new NDService();
+                }
+            }
+            return ndService;
+        });
         wssv.Start();
-        Console.WriteLine("WebSocket server started on ws://127.0.0.1:8080/pfd");
+        Console.WriteLine("WebSocket server started on ws://127.0.0.1:8080");
+        Console.WriteLine("PFD available at /pfd");
+        Console.WriteLine("ND available at /nd");
 
         // Connect to MSFS
         try
