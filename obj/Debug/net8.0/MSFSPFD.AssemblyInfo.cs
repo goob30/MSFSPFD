@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MSFSPFD")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f9d2c4e75550ab4b80a248efe250fb5857e8d79c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+615355887cb2043a45eb29c7b874dcbe2eceab34")]
 [assembly: System.Reflection.AssemblyProductAttribute("MSFSPFD")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MSFSPFD")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

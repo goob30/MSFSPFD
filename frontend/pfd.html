@@ -17,7 +17,7 @@
             border: 2px solid red;
             color: white;
             padding: 10px 20px;
-            font-family: monospace, sans-serif;
+            font-family: monospace, sans-serif, 'Segoe UI', Tahoma, Geneva, Verdana, Oxygen, 'Tw Cen MT', 'ISOCP', 'TechnicBold';
             font-size: 16px;
             z-index: 1000;
             white-space: nowrap;
@@ -28,7 +28,7 @@
         
     </head>
     <body>
-        <canvas id="pfd" width="600" height="500"></canvas>
+        <canvas id="pfd" width="600" height="570"></canvas>
         <script>
             // This is the new pfd.js
             let canvas = document.getElementById('pfd');
@@ -41,16 +41,17 @@
 
             // --- Flight Data Variables ---
             // These will be updated by the WebSocket
-            let pitch = 0, bank = 0, airspeed = 0, altitude = 0, heading = 0, verticalSpeed = 0;
-            let selectedAltitude = 0, selectedAirspeed = 0, qnh = 1013;
+            let pitch = 0, bank = 0, airspeed = 282, mach = 0.85, altitude = 25000, heading = 0, verticalSpeed = 0;
+            let selectedAltitude = 25000, selectedAirspeed = 0, qnh = 1013;
 
-            // --- PFD Style Configuration ---
+            
             const config = {
                 skyColor: '#0087FF',
                 groundColor: '#A55200',
                 fdColor: '#00FF00', // Flight Director color
                 aircraftSymbolColor: '#D4AC0D', // Yellow/gold
             };
+            
             
             // --- WebSocket Connection ---
             let ws = new WebSocket("ws://127.0.0.1:8080/pfd");
@@ -67,6 +68,7 @@
                 pitch = data.pitch;
                 bank = data.bank;
                 airspeed = data.airspeed;
+                mach = data.mach;
                 altitude = data.altitude;
                 heading = data.heading;
                 verticalSpeed = data.verticalSpeed;
@@ -113,7 +115,7 @@
 
                 ctx.translate(canvas.width / 2, canvas.height / 2);
                 ctx.rotate(bank * Math.PI / 180);
-                const pitchOffset = pitch * 10; // 10 pixels per degree of pitch
+                const pitchOffset = pitch * 8.77; // 10 pixels per degree of pitch
 
                 ctx.drawImage(horizonImg, -horizonImg.width / 2, -horizonImg.height / 2 - pitchOffset);
 
@@ -223,8 +225,8 @@
                 prevAltitude = rawAltitude;
             }
 
-            function drawSpeedTape() {
-                const x = 50, y = 120, width = 65, height = 260;
+            function drawSpeedTape() { // All the smart shit like trend calculation is vibe coded, because i was lazy
+                const x = 50, y = 155, width = 65, height = 260;
                 const centerY = y + height / 2;
                 const pxPerKnot = 4;
                 const now = performance.now() / 1000;
@@ -249,7 +251,7 @@
                 ctx.fillRect(x, y, width, height);
                 ctx.strokeStyle = "white"; 
                 ctx.fillStyle = "white"; 
-                ctx.font = "18px monospace"; 
+                ctx.font = "18px 'Tw Cen MT'"; 
                 ctx.textAlign = "right";
                 
                 // Use smoothed airspeed for tape positioning and display
@@ -281,7 +283,7 @@
                 
                 // Draw text with rounded speed
                 ctx.fillStyle = 'white';
-                ctx.font = "bold 22px monospace";
+                ctx.font = "bold 22px 'Tw Cen MT'";
                 ctx.textAlign = "center";
                 ctx.fillText(displayedSpeed, x + width / 2, centerY + 8);
                 
@@ -309,19 +311,26 @@
                     ctx.fill();
                 }
 
-                ctx.fillStyle = "cyan"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
+                ctx.fillStyle = "cyan"; ctx.font = "bold 20px 'Tw Cen MT'"; ctx.textAlign = "center";
                 ctx.fillText(Math.round(selectedAirspeed), x + width/2, y-8);
                 
                 // Mach indicator
-                ctx.fillStyle = "white"; ctx.font = "16px monospace";
-                ctx.fillText(Math.round(qnh), x + width/2, y + height + 20);
+                let machText = "";
+                if (mach >= 0.4) {
+                    machText = mach;
+                }
+                else {
+                    machText = ""
+                }
+                ctx.fillStyle = "white"; ctx.font = "16px 'Tw Cen MT'";
+                ctx.fillText(machText, x + width/2, y + height + 20);
                 
                 // Reset line width
                 ctx.lineWidth = 1;
             }   
 
             function drawAltitudeTape() {
-                const x = canvas.width - 115, y = 120, width = 80, height = 260;
+                const x = canvas.width - 115, y = 155, width = 80, height = 260;
                 const centerY = y + height / 2;
                 const pxPer100ft = 20;
                 const now = performance.now() / 1000;
@@ -341,7 +350,7 @@
                 ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip();
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; ctx.fillRect(x, y, width, height);
                 
-                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "18px monospace"; ctx.textAlign = "left";
+                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "18px 'Tw Cen MT'"; ctx.textAlign = "left";
                 
                 const startAlt = Math.floor(altitude / 100) * 100 - 1000;
                 for (let alt = startAlt; alt <= startAlt + 2000; alt += 100) {
@@ -353,16 +362,25 @@
                 
                 // Current Altitude Indicator
                 ctx.strokeStyle = "white"; ctx.strokeRect(x, y, width, height);
-                ctx.fillStyle = '#00FF00'; ctx.fillRect(x, centerY - 18, width, 36);
-                ctx.fillStyle = 'black'; ctx.font = "bold 22px monospace"; ctx.textAlign = "center";
+                
+                //Current Altitude Indicator real
+                drawRoundedRect(ctx, x, centerY - 18, width, 36, 5);
+                ctx.fillStyle = "black";
+                ctx.strokeStyle = "white";
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = "white";
+                ctx.font = "bold 22px 'Tw Cen MT'";
+                ctx.textAlign = "center";
                 ctx.fillText(Math.round(altitude), x + width / 2, centerY + 8);
 
                 // Selected Altitude
-                ctx.fillStyle = "cyan"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
+                ctx.fillStyle = "cyan"; ctx.font = "bold 20px 'Tw Cen MT'"; ctx.textAlign = "center";
                 ctx.fillText(Math.round(selectedAltitude), x + width/2, y-8);
 
                 // QNH Setting
-                ctx.fillStyle = "white"; ctx.font = "16px monospace";
+                ctx.fillStyle = "white"; ctx.font = "16px 'Tw Cen MT'";
                 ctx.fillText("QNH " + Math.round(qnh), x + width/2, y + height + 20);
 
                 const TREND_DIFFERENCE = Math.abs(projectedAltitude - altitude);
@@ -396,7 +414,7 @@
                 ctx.save();
                 ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip();
                 ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x, y, width, height);
-                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "16px monospace"; ctx.textAlign = "center";
+                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "16px 'Tw Cen MT'"; ctx.textAlign = "center";
                 
                 const startHdg = Math.round(heading - 35);
                 for (let h = startHdg; h <= startHdg + 70; h++) {
@@ -414,7 +432,7 @@
 
                 // Center indicator
                 ctx.strokeStyle = "white"; ctx.strokeRect(x, y, width, height);
-                ctx.fillStyle = "white"; ctx.font = 'bold 18px monospace';
+                ctx.fillStyle = "white"; ctx.font = "bold 18px 'Tw Cen MT'";
                 ctx.strokeRect(centerX - 30, y-1, 60, 22);
                 ctx.fillRect(centerX - 30, y-1, 60, 22);
                 ctx.fillStyle = 'black';
@@ -426,7 +444,7 @@
                 const centerY = y + height / 2, maxVS = 3000;
                 const pxPer100fpm = (height / 2) / (maxVS / 100) / 100;
 
-                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "14px monospace"; ctx.textAlign = "left";
+                ctx.strokeStyle = "white"; ctx.fillStyle = "white"; ctx.font = "14px 'Tw Cen MT'"; ctx.textAlign = "left";
                 
                 // Draw scale
                 [-2000, -1000, 1000, 2000].forEach(val => {
@@ -451,15 +469,20 @@
             
             function drawFMA() {
                 ctx.textAlign = "center";
-                const topY = 30;
+                ctx.fillStyle = "#1F1F1F";
+                ctx.fillRect(0, 0, canvas.width, 65); // Distance to rest of PFD is 70, height has 5 px of margin
+                const topY = 20;
                 const fma = [
                     {text: 'SPEED', color: 'lime', x: 80}, {text: 'G/S', color: 'lime', x: 190},
                     {text: 'LOC', color: 'lime', x: 270}, {text: 'CAT3\nDUAL', color: 'white', x: 380},
                     {text: 'AP1+2\nFD 2\nA/THR', color: 'white', x: 490},
                 ];
+                const fmaItems = [
+                    {id: 'fmaSpeed', text: 'SPEED', color: 'lime', x: canvas.width / 3},
+                ];
                 fma.forEach(item => {
                     ctx.fillStyle = item.color;
-                    ctx.font = `bold ${item.text.includes('\n') ? '16px' : '18px'} sans-serif`;
+                    ctx.font = `bold ${item.text.includes('\n') ? '16px' : '25px'} Tw Cen MT`;
                     let lines = item.text.split('\n');
                     lines.forEach((line, index) => ctx.fillText(line, item.x, topY + index * 18));
                 });
